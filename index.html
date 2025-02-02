@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Note-Taking & NLP App</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --primary-color: #4361ee;
+      --secondary-color: #3f37c9;
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --text-color: #2b2d42;
+      --border-radius: 12px;
+    }
+    body {
+      padding-top: 2rem;
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    .container {
+      max-width: 1000px;
+      padding: 0 1.5rem;
+    }
+    .app-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    .app-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+    }
+    .nav-tabs {
+      border: none;
+      margin-bottom: 2rem;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .nav-tabs .nav-link {
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--border-radius);
+      color: var(--text-color);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .nav-tabs .nav-link i {
+      font-size: 1.1rem;
+    }
+    .nav-tabs .nav-link:hover {
+      background-color: rgba(67, 97, 238, 0.1);
+    }
+    .nav-tabs .nav-link.active {
+      background-color: var(--primary-color);
+      color: white;
+      box-shadow: 0 4px 6px rgba(67, 97, 238, 0.2);
+    }
+    .tab-content {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .tab-pane h3 {
+      color: var(--primary-color);
+      font-size: 1.75rem;
+      margin-bottom: 1.5rem;
+      font-weight: 600;
+    }
+    .form-control, .form-select {
+      border-radius: var(--border-radius);
+      padding: 0.75rem;
+      border: 2px solid #e9ecef;
+      transition: all 0.3s ease;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.25);
+    }
+    .btn-primary {
+      background-color: var(--primary-color);
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: var(--border-radius);
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover {
+      background-color: var(--secondary-color);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(67, 97, 238, 0.2);
+    }
+    .result-box {
+      background: #f8f9fa;
+      border-radius: var(--border-radius);
+      padding: 1.5rem;
+      margin-top: 2rem;
+      border: 2px solid #e9ecef;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+    }
+    .upload-area {
+      border: 2px dashed #e9ecef;
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .upload-area:hover {
+      border-color: var(--primary-color);
+      background: rgba(67, 97, 238, 0.05);
+    }
+    .upload-icon {
+      font-size: 2rem;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+    }
+    /* Loading animation */
+    .loading {
+      display: none;
+      text-align: center;
+      margin: 1rem 0;
+    }
+    .loading-spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary-color);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="app-header">
+      <h1 class="app-title">Note Ninja</h1>
+      <p class="text-muted">Transform your audio and text into intelligent, organized content</p>
+    </div>
+
+    <ul class="nav nav-tabs" id="appTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="audio-tab" data-bs-toggle="tab" data-bs-target="#audio" type="button" role="tab">
+          <i class="fas fa-microphone"></i> Process Audio
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="analysis-tab" data-bs-toggle="tab" data-bs-target="#analysis" type="button" role="tab">
+          <i class="fas fa-chart-bar"></i> Analyze Text
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="mindmap-tab" data-bs-toggle="tab" data-bs-target="#mindmap" type="button" role="tab">
+          <i class="fas fa-project-diagram"></i> Mind Map
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="translate-tab" data-bs-toggle="tab" data-bs-target="#translate" type="button" role="tab">
+          <i class="fas fa-language"></i> Translate
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="download-tab" data-bs-toggle="tab" data-bs-target="#download" type="button" role="tab">
+          <i class="fas fa-file-pdf"></i> Download PDF
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="flashcards-tab" data-bs-toggle="tab" data-bs-target="#flashcards" type="button" role="tab">
+          <i class="fas fa-flash"></i> Flashcards
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="askquestion-tab" data-bs-toggle="tab" data-bs-target="#askquestion" type="button" role="tab">
+          <i class="fas fa-question-circle"></i> Ask Question
+        </button>
+      </li>
+      
+    </ul>
+
+    <div class="tab-content" id="appTabContent">
+      <!-- Audio Processing Tab -->
+      <!-- Audio Processing Tab -->
+<div class="tab-pane fade show active" id="audio" role="tabpanel">
+  <h3><i class="fas fa-microphone"></i> Upload an Audio File</h3>
+  <form id="audioForm">
+    <div class="upload-area mb-3" id="dropZone">
+      <i class="fas fa-cloud-upload-alt upload-icon"></i>
+      <h4>Drag and drop your audio file here</h4>
+      <p class="text-muted">or</p>
+      <input type="file" class="form-control" id="audioFile" name="audio" accept="audio/*" hidden required />
+      <button type="button" class="btn btn-primary" onclick="document.getElementById('audioFile').click()">
+        Choose File
+      </button>
+      <p class="mt-2 text-muted" id="selectedFileName">No file selected</p>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">
+      <i class="fas fa-process"></i> Process Audio
+    </button>
+  </form>
+  <div class="loading" id="audioLoading">
+    <div class="loading-spinner"></div>
+    <p class="mt-2">Processing your audio...</p>
+  </div>
+  
+  <!-- Updated Result Display -->
+  <div id="audioResult" class="result-box mt-4" style="display: none;">
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-file-audio"></i> Processed Audio Results</h5>
+      </div>
+      <div class="card-body">
+        <!-- Note ID and Transcription -->
+        <div class="note-section mb-4">
+          <h6 class="text-primary"><i class="fas fa-bookmark"></i> Note Information</h6>
+          <div id="noteInfo" class="pl-3"></div>
+        </div>
+
+        <!-- Summaries Section -->
+        <div class="summaries-section mb-4">
+          <h6 class="text-primary"><i class="fas fa-list"></i> Summaries</h6>
+          <div id="summariesContent" class="accordion"></div>
+        </div>
+
+        <!-- Insights Section -->
+        <div class="insights-section">
+          <h6 class="text-primary"><i class="fas fa-lightbulb"></i> Insights</h6>
+          <div class="row" id="insightsContent">
+            <!-- Key Phrases -->
+            <div class="col-md-6 mb-3">
+              <div class="card h-100">
+                <div class="card-header bg-light">
+                  <h6 class="mb-0"><i class="fas fa-tags"></i> Key Phrases</h6>
+                </div>
+                <div class="card-body" id="keyPhrasesContent"></div>
+              </div>
+            </div>
+            
+            <!-- Entities -->
+            <div class="col-md-6 mb-3">
+              <div class="card h-100">
+                <div class="card-header bg-light">
+                  <h6 class="mb-0"><i class="fas fa-project-diagram"></i> Entities</h6>
+                </div>
+                <div class="card-body" id="entitiesContent"></div>
+              </div>
+            </div>
+            
+            <!-- Analysis Scores -->
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header bg-light">
+                  <h6 class="mb-0"><i class="fas fa-chart-bar"></i> Analysis Scores</h6>
+                </div>
+                <div class="card-body" id="scoresContent"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      <!-- Text Analysis Tab -->
+      <div class="tab-pane fade" id="analysis" role="tabpanel">
+        <h3><i class="fas fa-chart-bar"></i> Analyze Text</h3>
+        <form id="analyzeForm">
+          <div class="mb-3">
+            <textarea class="form-control" id="analyzeText" rows="6" placeholder="Enter your text here for analysis..." required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-analytics"></i> Analyze Text
+          </button>
+        </form>
+        <div class="loading" id="analysisLoading">
+          <div class="loading-spinner"></div>
+          <p class="mt-2">Analyzing your text...</p>
+        </div>
+        <div id="analyzeResult" class="result-box" style="display: none;"></div>
+      </div>
+
+      <!-- Mind Map Tab -->
+      <div class="tab-pane fade" id="mindmap" role="tabpanel">
+        <h3><i class="fas fa-project-diagram"></i> Generate Mind Map</h3>
+        <form id="mindmapForm">
+          <div class="mb-3">
+            <textarea class="form-control" id="mindmapText" rows="6" placeholder="Enter your text to generate a mind map..." required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-diagram-project"></i> Generate Mind Map
+          </button>
+        </form>
+        <div class="loading" id="mindmapLoading">
+          <div class="loading-spinner"></div>
+          <p class="mt-2">Generating mind map...</p>
+        </div>
+        <div id="mindmapResult" class="result-box" style="display: none;"></div>
+      </div>
+
+      <!-- Translation Tab -->
+      <div class="tab-pane fade" id="translate" role="tabpanel">
+        <h3><i class="fas fa-language"></i> Translate Text</h3>
+        <form id="translateForm">
+          <div class="mb-3">
+            <textarea class="form-control" id="translateText" rows="6" placeholder="Enter text to translate..." required></textarea>
+          </div>
+          <div class="mb-3">
+            <select class="form-select" id="targetLang">
+              <option value="es">Spanish (Español)</option>
+              <option value="fr">French (Français)</option>
+              <option value="it">Italian (Italiano)</option>
+              <option value="ro">Romanian (Română)</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-language"></i> Translate
+          </button>
+        </form>
+        <div class="loading" id="translateLoading">
+          <div class="loading-spinner"></div>
+          <p class="mt-2">Translating your text...</p>
+        </div>
+        <div id="translateResult" class="result-box" style="display: none;"></div>
+      </div>
+
+      <!-- PDF Download Tab -->
+      <div class="tab-pane fade" id="download" role="tabpanel">
+        <h3><i class="fas fa-file-pdf"></i> Download Enhanced PDF</h3>
+        <form id="pdfForm">
+          <div class="mb-3">
+            <input type="text" class="form-control" id="noteId" placeholder="Enter your Note ID" required />
+            <div class="form-text">You can find your Note ID in the audio processing results</div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-download"></i> Download PDF
+          </button>
+        </form>
+        <div class="loading" id="pdfLoading">
+          <div class="loading-spinner"></div>
+          <p class="mt-2">Generating PDF...</p>
+        </div>
+        <div id="pdfResult" class="mt-3"></div>
+      </div>
+      <div class="container mt-4">
+        <form id="flashcardsForm">
+            <div class="form-group">
+                <label for="flashcardNoteId">Note ID:</label>
+                <input type="text" class="form-control" id="flashcardNoteId" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Generate Flashcards</button>
+        </form>
+    
+        <div id="flashcardsLoading" style="display: none;" class="mt-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+        </div>
+    
+        <div id="flashcardsResult" style="display: none;" class="mt-3"></div>
+    
+        <div id="flashcardContainer" style="display: none;" class="mt-4">
+            <div id="flashcardContent"></div>
+            <p id="cardCounter" class="text-center mt-2"></p>
+            <div class="d-flex justify-content-center mt-3">
+                <button id="prevCard" class="btn btn-secondary mr-2">Previous</button>
+                <button id="toggleAnswer" class="btn btn-info mx-2">Show/Hide Answer</button>
+                <button id="nextCard" class="btn btn-secondary ml-2">Next</button>
+            </div>
+        </div>
+    </div>
+
+<!-- Ask Question Tab -->
+<div class="tab-pane fade" id="askquestion" role="tabpanel">
+  <h3><i class="fas fa-question-circle"></i> Ask a Question about your Note</h3>
+  <form id="askQuestionForm">
+    <div class="mb-3">
+      <input type="text" class="form-control" id="questionNoteId" placeholder="Enter your Note ID" required />
+    </div>
+    <div class="mb-3">
+      <textarea class="form-control" id="questionText" rows="3" placeholder="Enter your question..." required></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">
+      <i class="fas fa-question-circle"></i> Ask Question
+    </button>
+  </form>
+  <div class="loading" id="askQuestionLoading">
+    <div class="loading-spinner"></div>
+    <p class="mt-2">Getting answer...</p>
+  </div>
+  <div id="askQuestionResult" class="result-box" style="display: none;"></div>
+</div>
+
+    </div>
+  </div>
+
+  <!-- Axios and Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    // Drag and drop functionality for the audio file
+    const dropZone = document.getElementById('dropZone');
+    const audioFile = document.getElementById('audioFile');
+    const selectedFileName = document.getElementById('selectedFileName');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, () => dropZone.classList.add('border-primary'), false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, () => dropZone.classList.remove('border-primary'), false);
+    });
+    dropZone.addEventListener('drop', handleDrop, false);
+    function handleDrop(e) {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      audioFile.files = files;
+      updateFileName();
+    }
+    audioFile.addEventListener('change', updateFileName);
+    function updateFileName() {
+      if (audioFile.files.length > 0) {
+        selectedFileName.textContent = audioFile.files[0].name;
+      } else {
+        selectedFileName.textContent = 'No file selected';
+      }
+    }
+
+    // Audio Processing: Submit audio file to backend
+   // Audio Processing: Submit audio file to backend
+document.getElementById('audioForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const loadingDiv = document.getElementById('audioLoading');
+  const resultDiv = document.getElementById('audioResult');
+  
+  loadingDiv.style.display = 'block';
+  resultDiv.style.display = 'none';
+  
+  const formData = new FormData(this);
+  
+  axios.post('/process-audio', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  .then(response => {
+    loadingDiv.style.display = 'none';
+    displayResults(response.data);
+  })
+  .catch(error => {
+    loadingDiv.style.display = 'none';
+    alert("Error processing audio: " + error);
+  });
+});
+
+function displayResults(data) {
+  const resultDiv = document.getElementById('audioResult');
+  
+  // Display Note Information
+  document.getElementById('noteInfo').innerHTML = `
+    <div class="mb-2"><strong>Note ID:</strong> ${data.note_id}</div>
+    <div><strong>Transcription:</strong> ${data.transcription}</div>
+  `;
+
+  // Display Summaries
+  const summariesHtml = Object.entries(data.summaries).map(([key, value]) => `
+    <div class="card mb-2">
+      <div class="card-header bg-light">
+        <h6 class="mb-0">
+          <button class="btn btn-link" type="button" data-toggle="collapse" 
+                  data-target="#${key}Summary">
+            ${key.replace('_', ' ').toUpperCase()}
+          </button>
+        </h6>
+      </div>
+      <div id="${key}Summary" class="collapse">
+        <div class="card-body">
+          ${value}
+        </div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('summariesContent').innerHTML = summariesHtml;
+
+  // Display Key Phrases
+  const keyPhrasesHtml = data.insights.key_phrases.map(phrase => 
+    `<span class="badge bg-primary text-white m-1">${phrase}</span>`
+  ).join('');
+  document.getElementById('keyPhrasesContent').innerHTML = keyPhrasesHtml;
+
+  // Display Entities
+  const entitiesHtml = data.insights.entities.map(entity => `
+    <div class="mb-2">
+      <span class="badge bg-secondary">${entity.type}</span>
+      <span class="ml-2">${entity.text}</span>
+    </div>
+  `).join('');
+  document.getElementById('entitiesContent').innerHTML = entitiesHtml;
+
+  // Display Analysis Scores
+  const sentimentColor = data.insights.sentiment.label === 'POSITIVE' ? 'success' : 
+                        data.insights.sentiment.label === 'NEGATIVE' ? 'danger' : 'warning';
+  
+  document.getElementById('scoresContent').innerHTML = `
+    <div class="mb-3">
+      <label class="form-label">Readability Score</label>
+      <div class="progress">
+        <div class="progress-bar" role="progressbar" 
+             style="width: ${Math.max(0, Math.min(100, (data.insights.readability_score + 10) * 10))}%">
+          ${data.insights.readability_score}
+        </div>
+      </div>
+    </div>
+    <div>
+      <label class="form-label">Sentiment (${data.insights.sentiment.label})</label>
+      <div class="progress">
+        <div class="progress-bar bg-${sentimentColor}" role="progressbar" 
+             style="width: ${data.insights.sentiment.score * 100}%">
+          ${Math.round(data.insights.sentiment.score * 100)}%
+        </div>
+      </div>
+    </div>
+  `;
+
+  resultDiv.style.display = 'block';
+}
+
+// File selection display
+document.getElementById('audioFile').addEventListener('change', function(e) {
+  const fileName = e.target.files[0]?.name || 'No file selected';
+  document.getElementById('selectedFileName').textContent = fileName;
+});
+
+    // Text Analysis: Submit text for analysis
+    document.getElementById('analyzeForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const loadingDiv = document.getElementById('analysisLoading');
+      loadingDiv.style.display = 'block';
+      const text = document.getElementById('analyzeText').value;
+      axios.post('/analyze-text', { text: text })
+      .then(response => {
+        loadingDiv.style.display = 'none';
+        const resultDiv = document.getElementById('analyzeResult');
+        resultDiv.style.display = 'block';
+        const data = response.data;
+        let html = `<strong>Text Analysis Result:</strong><br>`;
+        html += `<strong>Summary:</strong><br>${JSON.stringify(data.summary)}<br>`;
+        html += `<strong>Keywords:</strong> ${data.keywords.join(', ')}<br>`;
+        html += `<strong>Sentiment:</strong> ${JSON.stringify(data.sentiment)}<br>`;
+        html += `<strong>Entities:</strong> ${data.entities.map(ent => ent.text + ' (' + ent.type + ')').join(', ')}<br>`;
+        html += `<strong>Readability:</strong> ${data.readability}<br>`;
+        html += `<strong>Language Stats:</strong><br>${JSON.stringify(data.language_stats)}<br>`;
+        resultDiv.innerHTML = html;
+      })
+      .catch(error => {
+        loadingDiv.style.display = 'none';
+        alert("Error analyzing text: " + error);
+      });
+    });
+
+    // Mind Map: Submit text for mind map generation
+    document.getElementById('mindmapForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const loadingDiv = document.getElementById('mindmapLoading');
+      loadingDiv.style.display = 'block';
+      const text = document.getElementById('mindmapText').value;
+      axios.post('/generate-mindmap', { text: text })
+      .then(response => {
+        loadingDiv.style.display = 'none';
+        const resultDiv = document.getElementById('mindmapResult');
+        resultDiv.style.display = 'block';
+        const data = response.data;
+        let html = `<strong>Mind Map:</strong><br>`;
+        data.mindmap.forEach(item => {
+          html += `<strong>Main:</strong> ${item.main} <br><strong>Subtopics:</strong> ${item.subtopics.join(', ')}<br>`;
+        });
+        resultDiv.innerHTML = html;
+      })
+      .catch(error => {
+        loadingDiv.style.display = 'none';
+        alert("Error generating mind map: " + error);
+      });
+    });
+
+    // Translation: Submit text and target language for translation
+    document.getElementById('translateForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const loadingDiv = document.getElementById('translateLoading');
+      loadingDiv.style.display = 'block';
+      const text = document.getElementById('translateText').value;
+      const lang = document.getElementById('targetLang').value;
+      axios.post('/translate', { text: text, target_lang: lang })
+      .then(response => {
+        loadingDiv.style.display = 'none';
+        const resultDiv = document.getElementById('translateResult');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `<strong>Translation Result:</strong> ${response.data.translation}`;
+      })
+      .catch(error => {
+        loadingDiv.style.display = 'none';
+        alert("Error translating text: " + error);
+      });
+    });
+
+    // PDF Download: Submit note ID and download generated PDF
+    document.getElementById('pdfForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const loadingDiv = document.getElementById('pdfLoading');
+      loadingDiv.style.display = 'block';
+      const noteId = document.getElementById('noteId').value;
+      axios.post('/download-enhanced-pdf', { note_id: noteId }, { responseType: 'blob' })
+      .then(response => {
+        loadingDiv.style.display = 'none';
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `enhanced_notes_${noteId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        const resultDiv = document.getElementById('pdfResult');
+        resultDiv.innerHTML = `<strong>PDF Generated:</strong> Your enhanced PDF has been downloaded.`;
+      })
+      .catch(error => {
+        loadingDiv.style.display = 'none';
+        alert("Error generating PDF: " + error);
+      });
+    });
+
+    // Flashcard display functionality
+let currentCardIndex = 0;
+let flashcards = [];
+
+document.getElementById('flashcardsForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const loadingDiv = document.getElementById('flashcardsLoading');
+    const resultDiv = document.getElementById('flashcardsResult');
+    const flashcardContainer = document.getElementById('flashcardContainer');
+    
+    try {
+        loadingDiv.style.display = 'block';
+        resultDiv.style.display = 'none';
+        flashcardContainer.style.display = 'none';
+        
+        const noteId = document.getElementById('flashcardNoteId').value;
+        const response = await axios.post('/generate-flashcards', { note_id: noteId });
+        
+        flashcards = response.data.flashcards;
+        currentCardIndex = 0;
+        
+        if (flashcards.length > 0) {
+            displayFlashcard(currentCardIndex);
+            flashcardContainer.style.display = 'block';
+        } else {
+            resultDiv.innerHTML = 'No flashcards generated.';
+            resultDiv.style.display = 'block';
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `Error: ${error.response?.data?.error || error.message}`;
+        resultDiv.style.display = 'block';
+    } finally {
+        loadingDiv.style.display = 'none';
+    }
+});
+
+function displayFlashcard(index) {
+    const flashcardContent = document.getElementById('flashcardContent');
+    const cardCounter = document.getElementById('cardCounter');
+    const card = flashcards[index];
+    
+    flashcardContent.innerHTML = `
+        <div class="card">
+            <div class="card-body">
+                <p class="card-text">${card.question}</p>
+                <div class="answer" style="display: none;">
+                    <hr>
+                    <p class="card-text">${card.answer}</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    cardCounter.textContent = `Card ${index + 1} of ${flashcards.length}`;
+}
+
+document.getElementById('prevCard').addEventListener('click', () => {
+    if (currentCardIndex > 0) {
+        currentCardIndex--;
+        displayFlashcard(currentCardIndex);
+    }
+});
+
+document.getElementById('nextCard').addEventListener('click', () => {
+    if (currentCardIndex < flashcards.length - 1) {
+        currentCardIndex++;
+        displayFlashcard(currentCardIndex);
+    }
+});
+
+document.getElementById('toggleAnswer').addEventListener('click', () => {
+    const answer = document.querySelector('.answer');
+    answer.style.display = answer.style.display === 'none' ? 'block' : 'none';
+});
+
+// Ask Question: Submit Note ID and Question to get an answer
+document.getElementById('askQuestionForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const loadingDiv = document.getElementById('askQuestionLoading');
+  loadingDiv.style.display = 'block';
+  const noteId = document.getElementById('questionNoteId').value;
+  const question = document.getElementById('questionText').value;
+  axios.post('/ask-question', { note_id: noteId, question: question })
+    .then(response => {
+      loadingDiv.style.display = 'none';
+      const resultDiv = document.getElementById('askQuestionResult');
+      resultDiv.style.display = 'block';
+      // The QA pipeline returns a dict; adjust the property as needed.
+      resultDiv.innerHTML = `<strong>Answer:</strong><br>${response.data.answer.answer}`;
+    })
+    .catch(error => {
+      loadingDiv.style.display = 'none';
+      alert("Error getting answer: " + error);
+    });
+});
+
+
+  </script>
+</body>
+</html>

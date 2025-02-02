@@ -1,0 +1,13 @@
+flask
+numpy
+matplotlib
+nltk
+speechrecognition
+transformers
+torch
+reportlab
+keybert
+pytextrank
+spacy
+wordcloud
+werkzeug
