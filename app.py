@@ -35,7 +35,8 @@ import base64
 flashcard_generator = pipeline("text-generation", model="gpt2")
 qa_pipeline = pipeline("question-answering", model="deepset/roberta-base-squad2")
 
-
+# Configure port for Render
+port = int(os.environ.get('PORT', 10000))
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads/'
@@ -584,5 +585,4 @@ def format_insights(insights):
 
 # bottom of app.py
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
