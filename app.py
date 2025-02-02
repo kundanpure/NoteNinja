@@ -4,12 +4,17 @@ import json
 from datetime import datetime
 from typing import List, Dict
 import random
+
+# Configure matplotlib for non-GUI backend first
 import matplotlib
 matplotlib.use('Agg')
 
+# Optimize NLTK setup
 import nltk
-nltk.download('punkt')
+nltk.download('punkt', download_dir='/tmp/nltk_data')
+nltk.data.path.append('/tmp/nltk_data')
 
+# Rest of imports
 import matplotlib.pyplot as plt
 from flask import Flask, request, jsonify, send_from_directory, send_file
 from werkzeug.utils import secure_filename
@@ -25,7 +30,6 @@ import pytextrank
 import spacy
 import numpy as np
 from wordcloud import WordCloud
-import matplotlib.pyplot as plt
 import base64
 
 flashcard_generator = pipeline("text-generation", model="gpt2")
