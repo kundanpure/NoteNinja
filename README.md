@@ -37,7 +37,7 @@
 
 Check out our live demo at [https://your-demo-link.com](https://your-demo-link.com).
 
-![NoteNinja Demo](Screenshot_2025-02-02_093719.png)
+![NoteNinja Demo](one1.png)
 
 
 ## Installation
