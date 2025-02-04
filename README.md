@@ -38,6 +38,11 @@
 Check out our live demo at [https://your-demo-link.com](https://your-demo-link.com).
 
 ![NoteNinja Demo](one1.png)
+![NoteNinja Demo](two.png)
+![NoteNinja Demo](three.png)
+![NoteNinja Demo](four.png)
+![NoteNinja Demo](five.png)
+![NoteNinja Demo](six.png)
 
 
 ## Installation
