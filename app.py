@@ -4,17 +4,18 @@ import json
 from datetime import datetime
 from typing import List, Dict
 import random
-
-# Configure matplotlib for non-GUI backend first
 import matplotlib
 matplotlib.use('Agg')
 
-# Optimize NLTK setup
-import nltk
-nltk.download('punkt', download_dir='/tmp/nltk_data')
-nltk.data.path.append('/tmp/nltk_data')
+from flask import Response
+import io
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from flask import Flask, request, jsonify, Response
 
-# Rest of imports
+import nltk
+nltk.download('punkt')
+
 import matplotlib.pyplot as plt
 from flask import Flask, request, jsonify, send_from_directory, send_file
 from werkzeug.utils import secure_filename
@@ -30,13 +31,13 @@ import pytextrank
 import spacy
 import numpy as np
 from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 import base64
 
 flashcard_generator = pipeline("text-generation", model="gpt2")
 qa_pipeline = pipeline("question-answering", model="deepset/roberta-base-squad2")
 
-# Configure port for Render
-port = int(os.environ.get('PORT', 10000))
+
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads/'
@@ -582,8 +583,275 @@ def format_insights(insights):
         f"{title.upper()}:\n{str(content)}"
         for title, content in insights.items()
     ])
+    
+   #added one more feature 
+   
+   # Add these imports to your existing app.py
+from bs4 import BeautifulSoup
+import requests
+from urllib.parse import urlparse
+import re
 
-# bottom of app.py
+
+def extract_qa_content(url: str) -> List[Dict[str, str]]:
+    """
+    Extract Q&A content from a given URL with improved handling for programming questions.
+    Returns a list of dictionaries containing question-answer pairs.
+    """
+    def clean_text(text: str) -> str:
+        """Clean and normalize text content."""
+        return re.sub(r'\s+', ' ', text).strip()
+
+    def is_valid_qa(question: str, answer: str) -> bool:
+        """
+        Validate if the Q&A pair is meaningful.
+        """
+        if not question or not answer:
+            return False
+        
+        # Minimum lengths for valid content
+        if len(question) < 10 or len(answer) < 5:
+            return False
+            
+        # Avoid cases where answer is just "Example" or similar
+        low_quality_answers = {'example', 'example:', 'example 1', 'example 2'}
+        if answer.lower().strip() in low_quality_answers:
+            return False
+            
+        return True
+
+    def extract_code_block(element) -> str:
+        """Extract code blocks if present in the answer."""
+        code_blocks = element.find_all(['pre', 'code'])
+        if code_blocks:
+            return '\n'.join(block.get_text(strip=True) for block in code_blocks)
+        return ''
+
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        qa_pairs = []
+
+        # Strategy 1: Look for numbered questions pattern
+        question_patterns = [
+            r'^\d+[\)\.]\s+',  # Matches "1) " or "1. "
+            r'^Q\d+[\)\.]\s+',  # Matches "Q1) " or "Q1. "
+            r'^Question\s+\d+[\)\.]\s+'  # Matches "Question 1) " or "Question 1. "
+        ]
+
+        for element in soup.find_all(['p', 'div', 'h2', 'h3', 'h4']):
+            text = clean_text(element.get_text())
+            
+            # Check if this element contains a question
+            is_question = any(re.match(pattern, text) for pattern in question_patterns)
+            
+            if is_question:
+                # Find the answer in subsequent elements
+                answer_element = element.find_next(['p', 'div', 'pre', 'code'])
+                if answer_element:
+                    answer_text = clean_text(answer_element.get_text())
+                    code_block = extract_code_block(answer_element)
+                    
+                    # Combine regular text and code block if both exist
+                    full_answer = answer_text
+                    if code_block:
+                        full_answer = f"{answer_text}\n\nCode:\n{code_block}"
+                    
+                    if is_valid_qa(text, full_answer):
+                        qa_pairs.append({
+                            'question': text,
+                            'answer': full_answer
+                        })
+
+        # Strategy 2: Look for question-answer pairs in structured formats
+        qa_containers = soup.find_all(['div', 'section'], class_=re.compile(r'(question|answer|qa|faq)'))
+        for container in qa_containers:
+            question_elem = container.find(['h2', 'h3', 'h4', 'div', 'p'], class_=re.compile(r'question|q'))
+            answer_elem = container.find(['div', 'p', 'pre'], class_=re.compile(r'answer|a'))
+            
+            if question_elem and answer_elem:
+                question_text = clean_text(question_elem.get_text())
+                answer_text = clean_text(answer_elem.get_text())
+                code_block = extract_code_block(answer_elem)
+                
+                if code_block:
+                    answer_text = f"{answer_text}\n\nCode:\n{code_block}"
+                
+                if is_valid_qa(question_text, answer_text):
+                    qa_pairs.append({
+                        'question': question_text,
+                        'answer': answer_text
+                    })
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_qa_pairs = []
+        for qa in qa_pairs:
+            qa_tuple = (qa['question'], qa['answer'])
+            if qa_tuple not in seen:
+                seen.add(qa_tuple)
+                unique_qa_pairs.append(qa)
+
+        if not unique_qa_pairs:
+            raise ValueError("No valid Q&A content found on the page")
+
+        return unique_qa_pairs
+
+    except requests.RequestException as e:
+        raise ValueError(f"Failed to access the website: {str(e)}")
+    except Exception as e:
+        raise ValueError(f"Failed to extract Q&A content: {str(e)}")
+
+
+@app.route('/extract-qa-from-url', methods=['POST'])
+def extract_qa_from_url():
+    try:
+        data = request.get_json()
+        url = data.get('url')
+
+        if not url:
+            return jsonify({'error': 'URL is required'}), 400
+
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+
+        # Extract Q&A content
+        try:
+            qa_pairs = extract_qa_content(url)
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 404
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+        # Generate unique note ID for storage
+        note_id = generate_note_id()
+
+        # Store in history
+        note_history.add_note(note_id, {
+            'content_type': 'qa_extraction',
+            'source_url': url,
+            'qa_pairs': qa_pairs,
+            'transcription': '\n\n'.join([f"Q: {qa['question']}\nA: {qa['answer']}" for qa in qa_pairs])
+        })
+
+        # ✅ Print note_id and stored data for debugging
+        print(f"Stored note_id: {note_id}")
+        print(f"Stored data: {note_history.get_note(note_id)}")
+
+        return jsonify({
+            'note_id': note_id,
+            'qa_pairs': qa_pairs,
+            'message': 'Q&A content extracted successfully'
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def draw_wrapped_text(pdf, text, x, y, max_width, line_height):
+    """
+    Draw text on the canvas, wrapping it within max_width.
+    Returns the new y position after drawing the text.
+    """
+    words = text.split()
+    line = ""
+    for word in words:
+        test_line = f"{line} {word}".strip()
+        # Check if the test_line width is within max_width
+        if pdf.stringWidth(test_line, pdf._fontname, pdf._fontsize) < max_width:
+            line = test_line
+        else:
+            pdf.drawString(x, y, line)
+            y -= line_height
+            line = word
+    if line:
+        pdf.drawString(x, y, line)
+        y -= line_height
+    return y
+
+@app.route('/download-qa-pdf/<note_id>', methods=['GET'])
+def download_qa_pdf(note_id):
+    try:
+        print(f"Received note_id for PDF: {note_id}")
+
+        # Retrieve stored note data
+        note_data = note_history.get_note(note_id)
+        print(f"Retrieved note data: {note_data}")
+
+        if not note_data:
+            return jsonify({'error': 'No data found for the given note ID'}), 404
+
+        # Access the nested 'content' where the Q&A is stored
+        content = note_data.get('content', {})
+        if 'qa_pairs' not in content:
+            return jsonify({'error': 'No Q&A content found for the given note ID'}), 404
+
+        qa_pairs = content['qa_pairs']
+
+        # Create an in-memory PDF file
+        buffer = io.BytesIO()
+        pdf = canvas.Canvas(buffer, pagesize=letter)
+        pdf.setTitle("Extracted Q&A")
+
+        # Define starting positions and layout parameters
+        y_position = 750
+        left_margin = 50
+        right_margin = 50
+        max_width = letter[0] - left_margin - right_margin
+        line_height = 14
+
+        # Title
+        pdf.setFont("Helvetica-Bold", 16)
+        pdf.drawString(100, y_position, "Extracted Q&A")
+        y_position -= 30
+
+        pdf.setFont("Helvetica", 12)
+        for qa in qa_pairs:
+            # Check if space is available; if not, start a new page.
+            if y_position < 100:
+                pdf.showPage()
+                pdf.setFont("Helvetica", 12)
+                y_position = 750
+
+            # Draw the question (using bold font)
+            pdf.setFont("Helvetica-Bold", 12)
+            question_text = f"Q: {qa['question']}"
+            y_position = draw_wrapped_text(pdf, question_text, left_margin, y_position, max_width, line_height)
+            
+            # Add a little spacing between question and answer
+            y_position -= 4
+            
+            # Draw the answer (regular font)
+            pdf.setFont("Helvetica", 12)
+            answer_text = f"A: {qa['answer']}"
+            y_position = draw_wrapped_text(pdf, answer_text, left_margin, y_position, max_width, line_height)
+            
+            # Additional spacing after each Q&A block
+            y_position -= 10
+
+        pdf.save()
+        buffer.seek(0)
+
+        return Response(
+            buffer,
+            mimetype='application/pdf',
+            headers={
+                "Content-Disposition": f"attachment; filename=Extracted_QA_{note_id}.pdf"
+            }
+        )
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))  # Render's default port is 10000
-    app.run(host='0.0.0.0', port=port)
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    app.run(debug=True)
+
+
