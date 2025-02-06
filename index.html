@@ -402,6 +402,48 @@
   <div id="askQuestionResult" class="result-box" style="display: none;"></div>
 </div>
 
+   <!--this is the added website extractor-->
+   <div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h2 class="text-2xl font-bold mb-4">Extract Q&A from Website</h2>
+        <div class="space-y-4">
+            <div>
+                <label for="websiteUrl" class="block text-sm font-medium text-gray-700">Website URL</label>
+                <input type="url" id="websiteUrl" 
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                       placeholder="https://example.com/faq">
+            </div>
+            <button onclick="extractQA()" 
+                    class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                Extract Q&A
+            </button>
+        </div>
+
+        <!-- Results Section -->
+        <div id="qaResults" class="mt-6 hidden">
+            <h3 class="text-xl font-semibold mb-3">Extracted Q&A Content</h3>
+            <div id="qaList" class="space-y-4"></div>
+            <div class="mt-4">
+                <button onclick="downloadQAPDF()" 
+                        class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    Download as PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="hidden mt-4">
+            <div class="flex items-center justify-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <span class="ml-2">Extracting content...</span>
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="hidden mt-4 p-4 bg-red-100 text-red-700 rounded-md"></div>
+    </div>
+</div>
+
     </div>
   </div>
 
@@ -739,6 +781,85 @@ document.getElementById('askQuestionForm').addEventListener('submit', function(e
       alert("Error getting answer: " + error);
     });
 });
+
+
+
+        let currentNoteId = null;
+
+        async function extractQA() {
+            const urlInput = document.getElementById('websiteUrl');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessage = document.getElementById('errorMessage');
+            const qaResults = document.getElementById('qaResults');
+            const qaList = document.getElementById('qaList');
+
+            // Validate URL
+            if (!urlInput.value) {
+                showError('Please enter a valid URL');
+                return;
+            }
+
+            // Show loading indicator
+            loadingIndicator.classList.remove('hidden');
+            errorMessage.classList.add('hidden');
+            qaResults.classList.add('hidden');
+
+            try {
+                const response = await fetch('/extract-qa-from-url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: urlInput.value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to extract Q&A content');
+                }
+
+                // Store note ID for PDF download
+                currentNoteId = data.note_id;
+
+                // Display results
+                qaList.innerHTML = data.qa_pairs.map((qa, index) => `
+                    <div class="border-l-4 border-indigo-500 pl-4">
+                        <p class="font-semibold">Q${index + 1}: ${qa.question}</p>
+                        <p class="mt-2 text-gray-600">A: ${qa.answer}</p>
+                    </div>
+                `).join('');
+
+                qaResults.classList.remove('hidden');
+
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        async function downloadQAPDF() {
+            if (!currentNoteId) {
+                showError('No content available for download');
+                return;
+            }
+
+            try {
+                window.location.href = `/download-qa-pdf/${currentNoteId}`;
+            } catch (error) {
+                showError('Failed to download PDF');
+            }
+        }
+
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+    
 
 
   </script>
